@@ -1,0 +1,17 @@
+{{ meta # project=共通システム開発, parent=03_運用, origin=https://drive.google.com/, author=運用チーム, version=1.0.0 }}
+
+# 日次引き継ぎ
+
+- 対象日: {{ date # today, 令和N年mm月dd日(六曜), +0D, copy @handoff_date }}
+- 記入者: {{ input # text, 記入者 @owner }}
+- 次の確認: {{ date # @handoff_date, yyyy-mm-dd HH:MM, +1D @next_day }}
+
+## 引き継ぎ内容
+
+- 未完了の作業:
+- 注意点:
+- 参照フォルダ: file:./
+
+## 前後確認
+
+- 関連日: {{ date # @handoff_date, yyyy-mm-dd(ddd), -1n..+1nD @related_date }}

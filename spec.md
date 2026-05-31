@@ -35,7 +35,9 @@ Header and footer UI parts are defined as gadgets. Each gadget can be moved by c
 - `footerLeft`
 - `footerRight`
 
-Initial gadgets include breadcrumbs, file template save, ambient timer, cache actions, mode switch, theme switch, today's date, and current date/time.
+Initial gadgets include breadcrumbs, file template save, the current file location opener, ambient timer, cache actions, mode switch, theme switch, today's date, and current date/time.
+
+The current file location opener opens the folder that contains the active `.rdot` document in the OS standard file explorer. It is disabled when RoDots is on the clean welcome screen and no document has been opened.
 
 ## Theme
 
@@ -107,3 +109,7 @@ Local file links are opened through Tauri. Web links can be checked and cached b
 ## Cache Policy
 
 Generated caches and app settings belong in the OS app data area, not next to user documents. This keeps cloud-synced folders clean.
+
+## Sample Documents
+
+The `examples/` folder contains editable `.rdot`, view-first `*.view.rdot`, and locked `*.rock.rdot` samples. The set is intended for manual desktop verification and for explaining editor/operator usage.

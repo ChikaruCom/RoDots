@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Clipboard, Download, Eye, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
+  import { Clipboard, Download, Eye, FolderOpen, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import AmbientTimer from './components/AmbientTimer.svelte';
   import Breadcrumbs from './components/Breadcrumbs.svelte';
@@ -186,6 +186,25 @@
     }
   }
 
+  async function openCurrentLocation(): Promise<void> {
+    if (!currentFilePath) {
+      toast = '開いている.rdotファイルがありません';
+      window.setTimeout(() => (toast = ''), 1800);
+      return;
+    }
+
+    const parts = currentFilePath.split(/[\\/]/);
+    parts.pop();
+    const folder = parts.join('\\');
+
+    try {
+      await openLocalPath(folder || currentFilePath);
+    } catch {
+      toast = 'ファイルの場所を開けませんでした';
+      window.setTimeout(() => (toast = ''), 1800);
+    }
+  }
+
   async function saveTemplate(template: FileTemplateId): Promise<void> {
     const fileName = buildTemplateFileName(template);
     const path = currentFilePath || window.prompt('保存先に使う既存ファイルパス、または保存先フォルダ', '');
@@ -269,6 +288,10 @@
       {#each headerRightGadgets as widget}
         {#if widget.id === 'fileTemplates'}
           <FileTemplateMenu onSave={saveTemplate} />
+        {:else if widget.id === 'openLocation'}
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50" title="開いているファイルの場所を開く" disabled={!currentFilePath} on:click={openCurrentLocation}>
+            <FolderOpen size={16} />
+          </button>
         {:else if widget.id === 'ambientTimer'}
           <AmbientTimer />
         {:else if widget.id === 'today'}
@@ -462,6 +485,10 @@
           <DateTimeGadget variant="datetime" />
         {:else if widget.id === 'breadcrumbs'}
           <Breadcrumbs meta={parsed.meta} openTarget={openBreadcrumbTarget} />
+        {:else if widget.id === 'openLocation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50" title="開いているファイルの場所を開く" disabled={!currentFilePath} on:click={openCurrentLocation}>
+            <FolderOpen size={14} />
+          </button>
         {/if}
       {/each}
     </div>
@@ -473,6 +500,10 @@
           <DateTimeGadget variant="datetime" />
         {:else if widget.id === 'breadcrumbs'}
           <Breadcrumbs meta={parsed.meta} openTarget={openBreadcrumbTarget} />
+        {:else if widget.id === 'openLocation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50" title="開いているファイルの場所を開く" disabled={!currentFilePath} on:click={openCurrentLocation}>
+            <FolderOpen size={14} />
+          </button>
         {/if}
       {/each}
     </div>

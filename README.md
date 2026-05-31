@@ -12,6 +12,7 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 - Lets preview users update dates through a calendar-like date input.
 - Reads document metadata and shows breadcrumbs for the project origin.
 - Generates rule-based file names for minutes, reports, and specs.
+- Opens the current document location in the OS file explorer.
 - Switches between View, Split, and Edit modes with `Ctrl+M`.
 - Opens `*.view.rdot` in View mode and locks `*.rock.rdot` to View mode.
 - Opens associated `.rdot` files directly when launched from the OS.
@@ -33,6 +34,16 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 ```
 
 `+3nD` expands the line into four rows: today through three days later.
+
+## Samples
+
+The `examples/` folder includes a compact sample set:
+
+- editable documents such as `minutes.rdot`, `report.rdot`, and `project-kickoff.rdot`
+- view-first documents such as `operator.view.rdot` and `daily-handoff.view.rdot`
+- locked documents such as `operator.rock.rdot` and `locked-procedure.rock.rdot`
+
+These are intended for quick desktop verification and for demonstrating how editors and operators can use the same document format in different modes.
 
 ## Development
 

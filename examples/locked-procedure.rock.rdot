@@ -1,0 +1,17 @@
+{{ meta # project=共通システム開発, parent=04_承認済み手順, origin=https://drive.google.com/, author=管理者, version=1.0.0 }}
+
+# 承認済み手順
+
+- 実施日: {{ date # today, 令和N年mm月dd日(六曜), +0D, copy @work_date }}
+- 実施者: {{ input # text, 実施者名 @owner }}
+
+## 手順
+
+- 共有フォルダを開く: file:./
+- 承認済みの手順書と対象データを照合する
+- 結果を記録する
+- 手順変更が必要な場合は、@owner ではなく管理者へ相談する
+
+## 確認範囲
+
+- 確認日: {{ date # @work_date, yyyy-mm-dd(ddd), +3nD @review_date }}

@@ -1,0 +1,16 @@
+{{ meta # project=共通システム開発, parent=05_仕様書, origin=https://drive.google.com/, author=水木, version=1.0.0 }}
+
+# 共通システム開発 仕様書
+
+- 作成日: {{ date # 2026-05-31, 令和N年mm月dd日(六曜), +0D, copy @created_date }}
+- 作成者: {{ input # text, 作成者名 @author }}
+- バージョン: {{ input # text, 1.0.0 @version }}
+
+## 目的
+
+- 現場で迷わず使える `.rdot` 文書の運用ルールを定義する
+- 日付、担当者、保存名、参照フォルダを文書から自然に扱えるようにする
+
+## 確認日
+
+- レビュー日: {{ date # @created_date, yyyy-mm-dd(ddd), +3nD @review_date }}

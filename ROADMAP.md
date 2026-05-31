@@ -15,6 +15,8 @@
 - Simple dark/light theme toggle
 - Metadata breadcrumbs
 - File template save command
+- Current file location gadget
+- Sample `.rdot` document set
 - Local path opening
 - URL check and cache skeleton
 - Cache backup and restore skeleton
