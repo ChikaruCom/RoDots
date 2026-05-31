@@ -18,6 +18,8 @@
 - Current file location gadget
 - Running app location gadget
 - Local cache location gadget
+- Right-click menu gadget zone
+- Portable `.rdot` file association registration
 - Sample `.rdot` document set
 - Local path opening
 - Portable zip package layout

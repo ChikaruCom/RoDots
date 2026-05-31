@@ -11,6 +11,9 @@ use tauri_plugin_opener::OpenerExt;
 use url::Url;
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
+#[cfg(windows)]
+use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+
 #[derive(Debug, Serialize)]
 struct CacheResult {
     url: String,
@@ -99,9 +102,28 @@ fn open_local_path(app: tauri::AppHandle, target: String, base_dir: Option<Strin
 }
 
 #[tauri::command]
+fn open_current_file_directory(app: tauri::AppHandle, current_file: String) -> Result<String, String> {
+    let file_path = PathBuf::from(current_file);
+    let canonical = file_path
+        .canonicalize()
+        .map_err(|err| format!("ファイルを確認できません: {err}"))?;
+    let dir = canonical
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| "ファイルの場所を解決できません".to_string())?;
+
+    open_directory(app, dir)
+}
+
+#[tauri::command]
 fn open_app_directory(app: tauri::AppHandle) -> Result<String, String> {
     let dir = app_dir()?;
     open_directory(app, dir)
+}
+
+#[tauri::command]
+fn register_rdot_file_association() -> Result<String, String> {
+    register_file_association()
 }
 
 #[tauri::command]
@@ -305,7 +327,16 @@ fn resolve_local_target(target: &str, base_dir: Option<&str>) -> Result<PathBuf,
         raw_path
     } else {
         let base = match base_dir {
-            Some(value) => PathBuf::from(value),
+            Some(value) => {
+                let path = PathBuf::from(value);
+                if path.is_file() || path.extension().is_some() {
+                    path.parent()
+                        .map(Path::to_path_buf)
+                        .ok_or_else(|| "基準ディレクトリを解決できません".to_string())?
+                } else {
+                    path
+                }
+            }
             None => std::env::current_dir().map_err(|err| err.to_string())?,
         };
         base.join(raw_path)
@@ -355,6 +386,41 @@ fn open_directory(app: tauri::AppHandle, dir: PathBuf) -> Result<String, String>
         .map_err(|err| format!("OSで開けませんでした: {err}"))?;
 
     Ok(canonical.to_string_lossy().to_string())
+}
+
+#[cfg(windows)]
+fn register_file_association() -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|err| err.to_string())?;
+    let exe_path = exe.to_string_lossy().to_string();
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+
+    let (ext_key, _) = hkcu
+        .create_subkey("Software\\Classes\\.rdot")
+        .map_err(|err| format!(".rdot登録に失敗しました: {err}"))?;
+    ext_key
+        .set_value("", &"RoDots.rdot")
+        .map_err(|err| format!(".rdot登録に失敗しました: {err}"))?;
+
+    let (class_key, _) = hkcu
+        .create_subkey("Software\\Classes\\RoDots.rdot")
+        .map_err(|err| format!("RoDotsファイル種別の登録に失敗しました: {err}"))?;
+    class_key
+        .set_value("", &"RoDots Document")
+        .map_err(|err| format!("RoDotsファイル種別の登録に失敗しました: {err}"))?;
+
+    let (command_key, _) = hkcu
+        .create_subkey("Software\\Classes\\RoDots.rdot\\shell\\open\\command")
+        .map_err(|err| format!("起動コマンドの登録に失敗しました: {err}"))?;
+    command_key
+        .set_value("", &format!("\"{exe_path}\" \"%1\""))
+        .map_err(|err| format!("起動コマンドの登録に失敗しました: {err}"))?;
+
+    Ok(exe_path)
+}
+
+#[cfg(not(windows))]
+fn register_file_association() -> Result<String, String> {
+    Err("この登録機能は現在Windowsのみ対応です".to_string())
 }
 
 fn hex_digest(input: &str) -> String {
@@ -419,8 +485,10 @@ pub fn run() {
             portable_config,
             startup_document,
             open_local_path,
+            open_current_file_directory,
             open_app_directory,
             open_cache_directory,
+            register_rdot_file_association,
             check_and_cache_url,
             export_cache_zip,
             import_cache_zip,

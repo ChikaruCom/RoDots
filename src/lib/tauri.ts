@@ -22,6 +22,10 @@ export async function openLocalPath(target: string, baseDir?: string): Promise<s
   return invoke('open_local_path', { target, baseDir });
 }
 
+export async function openCurrentFileDirectory(currentFile: string): Promise<string> {
+  return invoke('open_current_file_directory', { currentFile });
+}
+
 export async function openAppDirectory(): Promise<string> {
   return invoke('open_app_directory');
 }
@@ -32,6 +36,10 @@ export async function openCacheDirectory(): Promise<string> {
 
 export async function getPortableConfig(): Promise<string | null> {
   return invoke('portable_config');
+}
+
+export async function registerRdotFileAssociation(): Promise<string> {
+  return invoke('register_rdot_file_association');
 }
 
 export async function checkAndCacheUrl(url: string): Promise<CacheResult> {

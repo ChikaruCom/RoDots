@@ -3120,7 +3120,7 @@ dependencies = [
 
 [[package]]
 name = "rodots"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "directories",
@@ -3132,6 +3132,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tokio",
  "url",
+ "winreg",
  "zip",
 ]
 

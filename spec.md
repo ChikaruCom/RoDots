@@ -34,6 +34,7 @@ Header and footer UI parts are defined as gadgets. Each gadget can be moved by c
 - `headerRight`
 - `footerLeft`
 - `footerRight`
+- `contextMenu`
 
 Initial gadgets include breadcrumbs, file template save, the current file location opener, the app location opener, the local cache opener, ambient timer, cache actions, mode switch, theme switch, today's date, and current date/time.
 
@@ -42,6 +43,8 @@ The current file location opener opens the folder that contains the active `.rdo
 The app location opener opens the directory that contains the running `rodots.exe`. This is useful for portable zip deployments placed in shared folders such as Dropbox.
 
 The local cache opener opens the OS-local RoDots cache directory. Shared configuration can live beside the app, but caches remain per-PC local data.
+
+The context menu zone is shown when the user right-clicks inside RoDots. It is intended for lower-frequency actions such as opening app/cache locations and registering the portable app as the `.rdot` opener.
 
 ## Theme
 
@@ -119,6 +122,8 @@ Generated caches and app settings belong in the OS app data area, not next to us
 RoDots supports a portable zip layout where `rodots.exe`, `config/`, `extensions/`, and `examples/` are distributed together. On startup, RoDots reads `config/rodots.config.json` beside the executable when present. This shared config can set the theme and gadget layout.
 
 The portable app folder is suitable for Dropbox-style shared deployment. Runtime caches are still written to each user's local OS cache directory.
+
+On Windows, the portable app can register the running `rodots.exe` as the current user's `.rdot` file association. This writes to `HKCU\Software\Classes` and does not require administrator rights.
 
 ## Sample Documents
 

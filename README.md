@@ -14,11 +14,13 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 - Generates rule-based file names for minutes, reports, and specs.
 - Opens the current document location in the OS file explorer.
 - Opens the running app folder and local cache folder from header gadgets.
+- Registers the running portable app as the default `.rdot` opener from the right-click gadget menu.
 - Switches between View, Split, and Edit modes with `Ctrl+M`.
 - Opens `*.view.rdot` in View mode and locks `*.rock.rdot` to View mode.
 - Opens associated `.rdot` files directly when launched from the OS.
 - Starts with a clean welcome screen when no document is provided.
 - Lets header and footer gadgets be arranged from a small config.
+- Supports header, footer, and right-click menu gadget zones.
 - Supports a portable zip layout with shared `config/` and `extensions/` folders beside `rodots.exe`.
 - Includes a simple dark/light theme toggle.
 - Keeps app caches outside synced project folders.
@@ -69,6 +71,8 @@ npm run package:portable
 ```
 
 The portable zip keeps shared settings and extensions beside `rodots.exe`. Runtime caches are still created in the local OS cache directory for each PC.
+
+Right-click inside the app to open the context gadget menu. The portable build can register its own `rodots.exe` as the current user's default `.rdot` opener without requiring an installer.
 
 ## Status
 

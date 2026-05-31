@@ -5,7 +5,7 @@ RoDots is intended to run from a shared folder such as Dropbox.
 Recommended zip layout:
 
 ```text
-RoDots-0.1.1-portable/
+RoDots-0.1.2-portable/
   rodots.exe
   README.md
   config/

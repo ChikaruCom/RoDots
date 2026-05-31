@@ -6,12 +6,13 @@ export type GadgetId =
   | 'openLocation'
   | 'openAppLocation'
   | 'openCacheLocation'
+  | 'registerFileAssociation'
   | 'modeSwitch'
   | 'themeToggle'
   | 'today'
   | 'clock';
 
-export type GadgetZone = 'headerLeft' | 'headerRight' | 'footerLeft' | 'footerRight';
+export type GadgetZone = 'headerLeft' | 'headerRight' | 'footerLeft' | 'footerRight' | 'contextMenu';
 
 export type GadgetConfig = {
   id: GadgetId;
@@ -23,8 +24,9 @@ export const gadgets: GadgetConfig[] = [
   { id: 'breadcrumbs', zone: 'headerLeft', visible: true },
   { id: 'fileTemplates', zone: 'headerRight', visible: true },
   { id: 'openLocation', zone: 'headerRight', visible: true },
-  { id: 'openAppLocation', zone: 'headerRight', visible: true },
-  { id: 'openCacheLocation', zone: 'headerRight', visible: true },
+  { id: 'openAppLocation', zone: 'contextMenu', visible: true },
+  { id: 'openCacheLocation', zone: 'contextMenu', visible: true },
+  { id: 'registerFileAssociation', zone: 'contextMenu', visible: true },
   { id: 'ambientTimer', zone: 'headerRight', visible: true },
   { id: 'cacheActions', zone: 'headerRight', visible: true },
   { id: 'themeToggle', zone: 'headerRight', visible: true },

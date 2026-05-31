@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Clipboard, Database, Download, Eye, FolderOpen, HardDrive, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
+  import { Clipboard, Database, Download, Eye, FileCheck, FolderOpen, HardDrive, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import AmbientTimer from './components/AmbientTimer.svelte';
   import Breadcrumbs from './components/Breadcrumbs.svelte';
@@ -8,13 +8,13 @@
   import type { FileTemplateId } from './lib/fileTemplates';
   import { modeLabel, nextMode, type AppMode } from './lib/modes';
   import { parseRawDots, updateDateBaseInSource, type Block, type InlineToken, type InputValues } from './lib/parser';
-  import { checkAndCacheUrl, exportCacheZip, getPortableConfig, getStartupDocument, importCacheZip, openAppDirectory, openCacheDirectory, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
+  import { checkAndCacheUrl, exportCacheZip, getPortableConfig, getStartupDocument, importCacheZip, openAppDirectory, openCacheDirectory, openCurrentFileDirectory, openLocalPath, registerRdotFileAssociation, saveWithTemplate, type LinkState } from './lib/tauri';
   import { gadgets, type GadgetConfig, type GadgetId, type GadgetZone } from './lib/widgetConfig';
 
   const githubUrl = 'https://github.com/ChikaruCom/RoDots';
   const starter = '';
-  const gadgetIds: GadgetId[] = ['breadcrumbs', 'fileTemplates', 'ambientTimer', 'cacheActions', 'openLocation', 'openAppLocation', 'openCacheLocation', 'modeSwitch', 'themeToggle', 'today', 'clock'];
-  const gadgetZones: GadgetZone[] = ['headerLeft', 'headerRight', 'footerLeft', 'footerRight'];
+  const gadgetIds: GadgetId[] = ['breadcrumbs', 'fileTemplates', 'ambientTimer', 'cacheActions', 'openLocation', 'openAppLocation', 'openCacheLocation', 'registerFileAssociation', 'modeSwitch', 'themeToggle', 'today', 'clock'];
+  const gadgetZones: GadgetZone[] = ['headerLeft', 'headerRight', 'footerLeft', 'footerRight', 'contextMenu'];
 
   let source = starter;
   let inputValues: InputValues = {};
@@ -28,6 +28,7 @@
   let rockLocked = false;
   let theme: 'dark' | 'light' = 'light';
   let gadgetConfig: GadgetConfig[] = gadgets;
+  let contextMenu = { open: false, x: 0, y: 0 };
 
   $: parsed = parseRawDots(source, inputValues);
   $: unresolvedCount = parsed.todos.length;
@@ -35,6 +36,7 @@
   $: headerRightGadgets = zoneGadgets('headerRight');
   $: footerLeftGadgets = zoneGadgets('footerLeft');
   $: footerRightGadgets = zoneGadgets('footerRight');
+  $: contextMenuGadgets = zoneGadgets('contextMenu');
   $: showEditor = mode !== 'view';
   $: showPreview = mode !== 'edit';
   $: workspaceClass = mode === 'split' ? 'grid min-h-0 grid-cols-1 md:grid-cols-2' : 'grid min-h-0 grid-cols-1';
@@ -51,10 +53,16 @@
         event.preventDefault();
         toggleMode();
       }
+      if (event.key === 'Escape') closeContextMenu();
     };
 
+    const handleClick = () => closeContextMenu();
     window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
+    window.addEventListener('click', handleClick);
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('click', handleClick);
+    };
   });
 
   async function loadStartupDocument(): Promise<void> {
@@ -174,7 +182,7 @@
   async function openLink(token: Extract<InlineToken, { kind: 'link' }>): Promise<void> {
     if (token.linkType === 'file') {
       try {
-        await openLocalPath(token.href);
+        await openLocalPath(token.href, currentFilePath || undefined);
         linkStates = { ...linkStates, [token.href]: 'ok' };
       } catch {
         linkStates = { ...linkStates, [token.href]: 'error' };
@@ -220,7 +228,7 @@
     }
 
     try {
-      await openLocalPath(target);
+      await openLocalPath(target, currentFilePath || undefined);
     } catch {
       toast = 'パンくずの場所を開けませんでした';
     }
@@ -233,12 +241,8 @@
       return;
     }
 
-    const parts = currentFilePath.split(/[\\/]/);
-    parts.pop();
-    const folder = parts.join('\\');
-
     try {
-      await openLocalPath(folder || currentFilePath);
+      await openCurrentFileDirectory(currentFilePath);
     } catch {
       toast = 'ファイルの場所を開けませんでした';
       window.setTimeout(() => (toast = ''), 1800);
@@ -261,6 +265,55 @@
       toast = 'ローカルキャッシュを開けませんでした';
       window.setTimeout(() => (toast = ''), 1800);
     }
+  }
+
+  async function registerFileAssociation(): Promise<void> {
+    if (!window.confirm('このRoDotsを.rdotファイルの標準アプリとして登録しますか？')) return;
+
+    try {
+      const registered = await registerRdotFileAssociation();
+      toast = `.rdotの標準アプリに登録しました: ${registered}`;
+      window.setTimeout(() => (toast = ''), 2600);
+    } catch {
+      toast = '.rdotの登録に失敗しました';
+      window.setTimeout(() => (toast = ''), 2200);
+    }
+  }
+
+  function openContextMenu(event: MouseEvent): void {
+    if (contextMenuGadgets.length === 0) return;
+    event.preventDefault();
+    contextMenu = { open: true, x: event.clientX, y: event.clientY };
+  }
+
+  function closeContextMenu(): void {
+    if (contextMenu.open) contextMenu = { ...contextMenu, open: false };
+  }
+
+  async function runContextMenuGadget(widget: GadgetConfig): Promise<void> {
+    closeContextMenu();
+    if (widget.id === 'openLocation') await openCurrentLocation();
+    if (widget.id === 'openAppLocation') await openAppLocation();
+    if (widget.id === 'openCacheLocation') await openCacheLocation();
+    if (widget.id === 'registerFileAssociation') await registerFileAssociation();
+    if (widget.id === 'themeToggle') toggleTheme();
+    if (widget.id === 'modeSwitch') toggleMode();
+    if (widget.id === 'cacheActions') await backupCache();
+  }
+
+  function contextMenuLabel(widget: GadgetConfig): string {
+    if (widget.id === 'openLocation') return '開いているファイルの場所を開く';
+    if (widget.id === 'openAppLocation') return '実行中アプリの場所を開く';
+    if (widget.id === 'openCacheLocation') return 'ローカルキャッシュの場所を開く';
+    if (widget.id === 'registerFileAssociation') return '.rdot標準アプリに登録';
+    if (widget.id === 'themeToggle') return 'ライト/ダーク切替';
+    if (widget.id === 'modeSwitch') return 'モード切替';
+    if (widget.id === 'cacheActions') return 'キャッシュをバックアップ';
+    if (widget.id === 'breadcrumbs') return 'パンくず';
+    if (widget.id === 'fileTemplates') return 'テンプレート名で保存';
+    if (widget.id === 'ambientTimer') return 'タイマー';
+    if (widget.id === 'today') return '今日の日付';
+    return '現在日時';
   }
 
   async function saveTemplate(template: FileTemplateId): Promise<void> {
@@ -323,7 +376,7 @@
   <title>RoDots</title>
 </svelte:head>
 
-<main class={`grid h-full grid-rows-[auto_1fr_auto] ${themeClass}`}>
+<main class={`relative grid h-full grid-rows-[auto_1fr_auto] ${themeClass}`} on:contextmenu={openContextMenu}>
   <header class="flex min-h-14 items-center justify-between border-b border-stone-800 bg-[#17191b] px-4">
     <div class="flex items-center gap-3">
       <div class="grid size-8 place-items-center rounded bg-cyan-500 text-sm font-black text-[#101113]">R</div>
@@ -357,6 +410,10 @@
         {:else if widget.id === 'openCacheLocation'}
           <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ローカルキャッシュの場所を開く" on:click={openCacheLocation}>
             <Database size={16} />
+          </button>
+        {:else if widget.id === 'registerFileAssociation'}
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title=".rdot標準アプリに登録" on:click={registerFileAssociation}>
+            <FileCheck size={16} />
           </button>
         {:else if widget.id === 'ambientTimer'}
           <AmbientTimer />
@@ -563,6 +620,10 @@
           <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ローカルキャッシュの場所を開く" on:click={openCacheLocation}>
             <Database size={14} />
           </button>
+        {:else if widget.id === 'registerFileAssociation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title=".rdot標準アプリに登録" on:click={registerFileAssociation}>
+            <FileCheck size={14} />
+          </button>
         {/if}
       {/each}
     </div>
@@ -586,8 +647,40 @@
           <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ローカルキャッシュの場所を開く" on:click={openCacheLocation}>
             <Database size={14} />
           </button>
+        {:else if widget.id === 'registerFileAssociation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title=".rdot標準アプリに登録" on:click={registerFileAssociation}>
+            <FileCheck size={14} />
+          </button>
         {/if}
       {/each}
     </div>
   </footer>
+
+  {#if contextMenu.open}
+    <div
+      class="fixed z-50 min-w-56 rounded border border-stone-700 bg-[#17191b] p-1 text-sm text-stone-100 shadow-xl"
+      style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+    >
+      {#each contextMenuGadgets as widget}
+        <button
+          class="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={widget.id === 'openLocation' && !currentFilePath}
+          on:click={() => runContextMenuGadget(widget)}
+        >
+          {#if widget.id === 'openLocation'}
+            <FolderOpen size={15} />
+          {:else if widget.id === 'openAppLocation'}
+            <HardDrive size={15} />
+          {:else if widget.id === 'openCacheLocation'}
+            <Database size={15} />
+          {:else if widget.id === 'registerFileAssociation'}
+            <FileCheck size={15} />
+          {:else}
+            <Pencil size={15} />
+          {/if}
+          <span>{contextMenuLabel(widget)}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 </main>
