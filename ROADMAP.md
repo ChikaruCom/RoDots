@@ -8,6 +8,9 @@
 - Preview-side date editing
 - View, split, and edit modes
 - `*.view.rdot` startup behavior
+- `*.rock.rdot` locked view behavior
+- Header/footer gadget zones
+- Simple dark/light theme toggle
 - Metadata breadcrumbs
 - File template save command
 - Local path opening

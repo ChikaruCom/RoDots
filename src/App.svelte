@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { Clipboard, Download, Eye, Moon, PanelsTopLeft, Pencil, RefreshCw, Upload } from 'lucide-svelte';
+  import { Clipboard, Download, Eye, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import AmbientTimer from './components/AmbientTimer.svelte';
   import Breadcrumbs from './components/Breadcrumbs.svelte';
+  import DateTimeGadget from './components/DateTimeGadget.svelte';
   import FileTemplateMenu from './components/FileTemplateMenu.svelte';
   import type { FileTemplateId } from './lib/fileTemplates';
   import { modeLabel, nextMode, type AppMode } from './lib/modes';
   import { parseRawDots, updateDateBaseInSource, type Block, type InlineToken, type InputValues } from './lib/parser';
   import { checkAndCacheUrl, exportCacheZip, getStartupDocument, importCacheZip, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
-  import { headerWidgets } from './lib/widgetConfig';
+  import { gadgets, type GadgetZone } from './lib/widgetConfig';
 
   const starter = `{{ meta # project=共通システム開発, parent=02_要件定義, origin=https://drive.google.com/ }}
 
@@ -34,16 +35,22 @@ TODOは @owner が未入力の間だけ残ります。`;
   let currentFilePath = '';
   let mode: AppMode = 'split';
   let startedFromViewFile = false;
+  let rockLocked = false;
+  let theme: 'dark' | 'light' = 'dark';
 
   $: parsed = parseRawDots(source, inputValues);
   $: unresolvedCount = parsed.todos.length;
-  $: leftWidgets = headerWidgets.filter((widget) => widget.visible && widget.side === 'left');
-  $: rightWidgets = headerWidgets.filter((widget) => widget.visible && widget.side === 'right');
+  $: headerLeftGadgets = zoneGadgets('headerLeft');
+  $: headerRightGadgets = zoneGadgets('headerRight');
+  $: footerLeftGadgets = zoneGadgets('footerLeft');
+  $: footerRightGadgets = zoneGadgets('footerRight');
   $: showEditor = mode !== 'view';
   $: showPreview = mode !== 'edit';
   $: workspaceClass = mode === 'split' ? 'grid min-h-0 grid-cols-1 md:grid-cols-2' : 'grid min-h-0 grid-cols-1';
+  $: themeClass = theme === 'dark' ? 'theme-dark bg-[#101113] text-stone-100' : 'theme-light bg-stone-50 text-stone-950';
 
   onMount(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     void loadStartupDocument();
 
     const handleKeydown = (event: KeyboardEvent) => {
@@ -62,7 +69,12 @@ TODOは @owner が未入力の間だけ残ります。`;
       const startup = await getStartupDocument();
       if (startup.path) currentFilePath = startup.path;
       if (startup.content) source = startup.content;
-      if (startup.view_mode) {
+      if (startup.rock_mode) {
+        rockLocked = true;
+        startedFromViewFile = true;
+        mode = 'view';
+        toast = '*.rock.rdot としてView固定で開きました';
+      } else if (startup.view_mode) {
         startedFromViewFile = true;
         mode = 'view';
         toast = '*.view.rdot としてViewで開きました';
@@ -73,10 +85,24 @@ TODOは @owner が未入力の間だけ残ります。`;
   }
 
   function toggleMode(): void {
+    if (rockLocked) {
+      toast = 'RockファイルはView固定です。変更は管理者に相談してください';
+      window.setTimeout(() => (toast = ''), 2200);
+      return;
+    }
     mode = nextMode(mode);
     activeDateKey = '';
     toast = `${modeLabel(mode)} モード`;
     window.setTimeout(() => (toast = ''), 1400);
+  }
+
+  function toggleTheme(): void {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }
+
+  function zoneGadgets(zone: GadgetZone) {
+    return gadgets.filter((gadget) => gadget.visible && gadget.zone === zone);
   }
 
   function setInput(alias: string, value: string): void {
@@ -218,7 +244,7 @@ TODOは @owner が未入力の間だけ残ります。`;
   <title>RoDots</title>
 </svelte:head>
 
-<main class="grid h-full grid-rows-[auto_1fr] bg-[#101113] text-stone-100">
+<main class={`grid h-full grid-rows-[auto_1fr_auto] ${themeClass}`}>
   <header class="flex min-h-14 items-center justify-between border-b border-stone-800 bg-[#17191b] px-4">
     <div class="flex items-center gap-3">
       <div class="grid size-8 place-items-center rounded bg-cyan-500 text-sm font-black text-[#101113]">R</div>
@@ -226,19 +252,27 @@ TODOは @owner が未入力の間だけ残ります。`;
         <h1 class="text-sm font-semibold tracking-normal">RoDots</h1>
         <p class="text-xs text-stone-400">Markdown with human-sized variables</p>
       </div>
-      {#each leftWidgets as widget}
+      {#each headerLeftGadgets as widget}
         {#if widget.id === 'breadcrumbs'}
           <Breadcrumbs meta={parsed.meta} openTarget={openBreadcrumbTarget} />
+        {:else if widget.id === 'today'}
+          <DateTimeGadget variant="date" />
+        {:else if widget.id === 'clock'}
+          <DateTimeGadget variant="datetime" />
         {/if}
       {/each}
     </div>
 
     <div class="flex items-center gap-2">
-      {#each rightWidgets as widget}
+      {#each headerRightGadgets as widget}
         {#if widget.id === 'fileTemplates'}
           <FileTemplateMenu onSave={saveTemplate} />
         {:else if widget.id === 'ambientTimer'}
           <AmbientTimer />
+        {:else if widget.id === 'today'}
+          <DateTimeGadget variant="date" />
+        {:else if widget.id === 'clock'}
+          <DateTimeGadget variant="datetime" />
         {:else if widget.id === 'cacheActions'}
           {#if unresolvedCount > 0}
             <span class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
@@ -251,28 +285,37 @@ TODOは @owner が未入力の間だけ残ります。`;
           <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="キャッシュを復元" on:click={restoreCache}>
             <Upload size={16} />
           </button>
-          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300" title="ダークモード">
-            <Moon size={16} />
+        {:else if widget.id === 'themeToggle'}
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ライト/ダーク切替" on:click={toggleTheme}>
+            {#if theme === 'dark'}
+              <Moon size={16} />
+            {:else}
+              <Sun size={16} />
+            {/if}
+          </button>
+        {:else if widget.id === 'modeSwitch'}
+          <button
+            class="inline-flex h-9 items-center gap-2 rounded border border-cyan-700/60 bg-cyan-950/30 px-3 text-xs font-medium text-cyan-100 hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-70"
+            title={rockLocked ? 'RockファイルはView固定です' : 'Ctrl+Mでモード切替'}
+            disabled={rockLocked}
+            on:click={toggleMode}
+          >
+            {#if rockLocked}
+              <Lock size={15} />
+            {:else if mode === 'view'}
+              <Eye size={15} />
+            {:else if mode === 'edit'}
+              <Pencil size={15} />
+            {:else}
+              <PanelsTopLeft size={15} />
+            {/if}
+            <span>{rockLocked ? 'Rock' : modeLabel(mode)}</span>
+            {#if startedFromViewFile && !rockLocked}
+              <span class="rounded bg-stone-800 px-1.5 py-0.5 text-[10px] text-stone-300">view file</span>
+            {/if}
           </button>
         {/if}
       {/each}
-      <button
-        class="inline-flex h-9 items-center gap-2 rounded border border-cyan-700/60 bg-cyan-950/30 px-3 text-xs font-medium text-cyan-100 hover:bg-cyan-900/50"
-        title="Ctrl+Mでモード切替"
-        on:click={toggleMode}
-      >
-        {#if mode === 'view'}
-          <Eye size={15} />
-        {:else if mode === 'edit'}
-          <Pencil size={15} />
-        {:else}
-          <PanelsTopLeft size={15} />
-        {/if}
-        <span>{modeLabel(mode)}</span>
-        {#if startedFromViewFile}
-          <span class="rounded bg-stone-800 px-1.5 py-0.5 text-[10px] text-stone-300">view file</span>
-        {/if}
-      </button>
     </div>
   </header>
 
@@ -378,4 +421,29 @@ TODOは @owner が未入力の間だけ残ります。`;
     </div>
     {/if}
   </section>
+
+  <footer class="flex min-h-10 items-center justify-between border-t border-stone-800 bg-[#17191b] px-4">
+    <div class="flex items-center gap-2">
+      {#each footerLeftGadgets as widget}
+        {#if widget.id === 'today'}
+          <DateTimeGadget variant="date" />
+        {:else if widget.id === 'clock'}
+          <DateTimeGadget variant="datetime" />
+        {:else if widget.id === 'breadcrumbs'}
+          <Breadcrumbs meta={parsed.meta} openTarget={openBreadcrumbTarget} />
+        {/if}
+      {/each}
+    </div>
+    <div class="flex items-center gap-2">
+      {#each footerRightGadgets as widget}
+        {#if widget.id === 'today'}
+          <DateTimeGadget variant="date" />
+        {:else if widget.id === 'clock'}
+          <DateTimeGadget variant="datetime" />
+        {:else if widget.id === 'breadcrumbs'}
+          <Breadcrumbs meta={parsed.meta} openTarget={openBreadcrumbTarget} />
+        {/if}
+      {/each}
+    </div>
+  </footer>
 </main>

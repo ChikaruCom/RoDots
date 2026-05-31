@@ -5,6 +5,7 @@
 - Name: RoDots
 - File extension: `.rdot`
 - View lock convention: `*.view.rdot`
+- Rock lock convention: `*.rock.rdot`
 - Stack: Tauri v2, Svelte, TypeScript, Vite, Tailwind CSS, Rust
 
 ## Modes
@@ -18,6 +19,23 @@ RoDots has three simple modes:
 `Ctrl+M` cycles through `view`, `split`, and `edit`.
 
 When RoDots is launched with a file whose name ends in `.view.rdot`, it starts in `view` mode. This supports documents prepared by an editor and safely executed by another user.
+
+When RoDots is launched with a file whose name ends in `.rock.rdot`, it starts in `view` mode and mode switching is locked. This is for documents that should not be edited by operators; changes should go through the document owner or manager.
+
+## Gadgets
+
+Header and footer UI parts are defined as gadgets. Each gadget can be moved by changing its zone:
+
+- `headerLeft`
+- `headerRight`
+- `footerLeft`
+- `footerRight`
+
+Initial gadgets include breadcrumbs, file template save, ambient timer, cache actions, mode switch, theme switch, today's date, and current date/time.
+
+## Theme
+
+RoDots supports a simple dark/light theme toggle from the header.
 
 ## Command Syntax
 

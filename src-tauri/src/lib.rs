@@ -26,6 +26,7 @@ struct StartupDocument {
     path: Option<String>,
     content: Option<String>,
     view_mode: bool,
+    rock_mode: bool,
 }
 
 #[tauri::command]
@@ -45,6 +46,7 @@ fn startup_document() -> StartupDocument {
             path: None,
             content: None,
             view_mode: false,
+            rock_mode: false,
         };
     };
 
@@ -53,13 +55,15 @@ fn startup_document() -> StartupDocument {
         .and_then(|value| value.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let view_mode = file_name.ends_with(".view.rdot");
+    let view_mode = file_name.ends_with(".view.rdot") || file_name.ends_with(".rock.rdot");
+    let rock_mode = file_name.ends_with(".rock.rdot");
     let content = fs::read_to_string(&path).ok();
 
     StartupDocument {
         path: Some(path.to_string_lossy().to_string()),
         content,
         view_mode,
+        rock_mode,
     }
 }
 

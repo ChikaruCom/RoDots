@@ -39,3 +39,45 @@ input {
   text-decoration: underline wavy #e5534b;
   text-underline-offset: 4px;
 }
+
+.theme-light header,
+.theme-light footer {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+.theme-light article,
+.theme-light textarea {
+  background: #fafafa;
+  color: #18181b;
+}
+
+.theme-light pre,
+.theme-light input,
+.theme-light select,
+.theme-light button,
+.theme-light code,
+.theme-light .bg-\[\#111315\],
+.theme-light .bg-\[\#151719\],
+.theme-light .bg-\[\#202225\] {
+  background-color: #ffffff;
+  color: #18181b;
+  border-color: #d4d4d8;
+}
+
+.theme-light .text-stone-50,
+.theme-light .text-stone-100,
+.theme-light .text-stone-200,
+.theme-light .text-stone-300 {
+  color: #27272a;
+}
+
+.theme-light .text-stone-400,
+.theme-light .text-stone-500 {
+  color: #71717a;
+}
+
+.theme-light .border-stone-800,
+.theme-light .border-stone-700 {
+  border-color: #d4d4d8;
+}

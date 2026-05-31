@@ -13,6 +13,9 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 - Reads document metadata and shows breadcrumbs for the project origin.
 - Generates rule-based file names for minutes, reports, and specs.
 - Switches between View, Split, and Edit modes with `Ctrl+M`.
+- Opens `*.view.rdot` in View mode and locks `*.rock.rdot` to View mode.
+- Lets header and footer gadgets be arranged from a small config.
+- Includes a simple dark/light theme toggle.
 - Keeps app caches outside synced project folders.
 
 ## Example

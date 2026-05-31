@@ -15,6 +15,7 @@ export type StartupDocument = {
   path: string | null;
   content: string | null;
   view_mode: boolean;
+  rock_mode: boolean;
 };
 
 export async function openLocalPath(target: string, baseDir?: string): Promise<string> {
