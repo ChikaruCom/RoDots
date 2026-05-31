@@ -16,8 +16,11 @@
 - Metadata breadcrumbs
 - File template save command
 - Current file location gadget
+- Running app location gadget
+- Local cache location gadget
 - Sample `.rdot` document set
 - Local path opening
+- Portable zip package layout
 - URL check and cache skeleton
 - Cache backup and restore skeleton
 

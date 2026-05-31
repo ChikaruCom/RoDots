@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Clipboard, Download, Eye, FolderOpen, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
+  import { Clipboard, Database, Download, Eye, FolderOpen, HardDrive, Lock, Moon, PanelsTopLeft, Pencil, RefreshCw, Sun, Upload } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import AmbientTimer from './components/AmbientTimer.svelte';
   import Breadcrumbs from './components/Breadcrumbs.svelte';
@@ -8,11 +8,13 @@
   import type { FileTemplateId } from './lib/fileTemplates';
   import { modeLabel, nextMode, type AppMode } from './lib/modes';
   import { parseRawDots, updateDateBaseInSource, type Block, type InlineToken, type InputValues } from './lib/parser';
-  import { checkAndCacheUrl, exportCacheZip, getStartupDocument, importCacheZip, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
-  import { gadgets, type GadgetZone } from './lib/widgetConfig';
+  import { checkAndCacheUrl, exportCacheZip, getPortableConfig, getStartupDocument, importCacheZip, openAppDirectory, openCacheDirectory, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
+  import { gadgets, type GadgetConfig, type GadgetId, type GadgetZone } from './lib/widgetConfig';
 
   const githubUrl = 'https://github.com/ChikaruCom/RoDots';
   const starter = '';
+  const gadgetIds: GadgetId[] = ['breadcrumbs', 'fileTemplates', 'ambientTimer', 'cacheActions', 'openLocation', 'openAppLocation', 'openCacheLocation', 'modeSwitch', 'themeToggle', 'today', 'clock'];
+  const gadgetZones: GadgetZone[] = ['headerLeft', 'headerRight', 'footerLeft', 'footerRight'];
 
   let source = starter;
   let inputValues: InputValues = {};
@@ -25,6 +27,7 @@
   let startedFromViewFile = false;
   let rockLocked = false;
   let theme: 'dark' | 'light' = 'light';
+  let gadgetConfig: GadgetConfig[] = gadgets;
 
   $: parsed = parseRawDots(source, inputValues);
   $: unresolvedCount = parsed.todos.length;
@@ -41,6 +44,7 @@
   onMount(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     void loadStartupDocument();
+    void loadPortableConfig();
 
     const handleKeydown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
@@ -104,7 +108,43 @@
   }
 
   function zoneGadgets(zone: GadgetZone) {
-    return gadgets.filter((gadget) => gadget.visible && gadget.zone === zone);
+    return gadgetConfig.filter((gadget) => gadget.visible && gadget.zone === zone);
+  }
+
+  async function loadPortableConfig(): Promise<void> {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+
+    try {
+      const raw = await getPortableConfig();
+      if (!raw) return;
+
+      const config = JSON.parse(raw) as { gadgets?: unknown; theme?: unknown };
+      if (Array.isArray(config.gadgets)) {
+        const nextGadgets = config.gadgets.filter(isGadgetConfig);
+        if (nextGadgets.length > 0) gadgetConfig = nextGadgets;
+      }
+      if (config.theme === 'dark' || config.theme === 'light') {
+        theme = config.theme;
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }
+    } catch {
+      toast = '共有設定を読み込めませんでした';
+      window.setTimeout(() => (toast = ''), 2200);
+    }
+  }
+
+  function isGadgetConfig(value: unknown): value is GadgetConfig {
+    if (!value || typeof value !== 'object') return false;
+    const candidate = value as Record<string, unknown>;
+    return isGadgetId(candidate.id) && isGadgetZone(candidate.zone) && typeof candidate.visible === 'boolean';
+  }
+
+  function isGadgetId(value: unknown): value is GadgetId {
+    return typeof value === 'string' && gadgetIds.includes(value as GadgetId);
+  }
+
+  function isGadgetZone(value: unknown): value is GadgetZone {
+    return typeof value === 'string' && gadgetZones.includes(value as GadgetZone);
   }
 
   function setInput(alias: string, value: string): void {
@@ -205,6 +245,24 @@
     }
   }
 
+  async function openAppLocation(): Promise<void> {
+    try {
+      await openAppDirectory();
+    } catch {
+      toast = 'アプリの場所を開けませんでした';
+      window.setTimeout(() => (toast = ''), 1800);
+    }
+  }
+
+  async function openCacheLocation(): Promise<void> {
+    try {
+      await openCacheDirectory();
+    } catch {
+      toast = 'ローカルキャッシュを開けませんでした';
+      window.setTimeout(() => (toast = ''), 1800);
+    }
+  }
+
   async function saveTemplate(template: FileTemplateId): Promise<void> {
     const fileName = buildTemplateFileName(template);
     const path = currentFilePath || window.prompt('保存先に使う既存ファイルパス、または保存先フォルダ', '');
@@ -291,6 +349,14 @@
         {:else if widget.id === 'openLocation'}
           <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50" title="開いているファイルの場所を開く" disabled={!currentFilePath} on:click={openCurrentLocation}>
             <FolderOpen size={16} />
+          </button>
+        {:else if widget.id === 'openAppLocation'}
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="実行中アプリの場所を開く" on:click={openAppLocation}>
+            <HardDrive size={16} />
+          </button>
+        {:else if widget.id === 'openCacheLocation'}
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ローカルキャッシュの場所を開く" on:click={openCacheLocation}>
+            <Database size={16} />
           </button>
         {:else if widget.id === 'ambientTimer'}
           <AmbientTimer />
@@ -489,6 +555,14 @@
           <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50" title="開いているファイルの場所を開く" disabled={!currentFilePath} on:click={openCurrentLocation}>
             <FolderOpen size={14} />
           </button>
+        {:else if widget.id === 'openAppLocation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="実行中アプリの場所を開く" on:click={openAppLocation}>
+            <HardDrive size={14} />
+          </button>
+        {:else if widget.id === 'openCacheLocation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ローカルキャッシュの場所を開く" on:click={openCacheLocation}>
+            <Database size={14} />
+          </button>
         {/if}
       {/each}
     </div>
@@ -503,6 +577,14 @@
         {:else if widget.id === 'openLocation'}
           <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50" title="開いているファイルの場所を開く" disabled={!currentFilePath} on:click={openCurrentLocation}>
             <FolderOpen size={14} />
+          </button>
+        {:else if widget.id === 'openAppLocation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="実行中アプリの場所を開く" on:click={openAppLocation}>
+            <HardDrive size={14} />
+          </button>
+        {:else if widget.id === 'openCacheLocation'}
+          <button class="grid size-8 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="ローカルキャッシュの場所を開く" on:click={openCacheLocation}>
+            <Database size={14} />
           </button>
         {/if}
       {/each}

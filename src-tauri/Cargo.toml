@@ -1,6 +1,6 @@
 [package]
 name = "rodots"
-version = "0.1.0"
+version = "0.1.1"
 description = "RoDots desktop document assistant"
 authors = ["RoDots"]
 edition = "2021"

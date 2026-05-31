@@ -4,6 +4,8 @@ export type GadgetId =
   | 'ambientTimer'
   | 'cacheActions'
   | 'openLocation'
+  | 'openAppLocation'
+  | 'openCacheLocation'
   | 'modeSwitch'
   | 'themeToggle'
   | 'today'
@@ -21,6 +23,8 @@ export const gadgets: GadgetConfig[] = [
   { id: 'breadcrumbs', zone: 'headerLeft', visible: true },
   { id: 'fileTemplates', zone: 'headerRight', visible: true },
   { id: 'openLocation', zone: 'headerRight', visible: true },
+  { id: 'openAppLocation', zone: 'headerRight', visible: true },
+  { id: 'openCacheLocation', zone: 'headerRight', visible: true },
   { id: 'ambientTimer', zone: 'headerRight', visible: true },
   { id: 'cacheActions', zone: 'headerRight', visible: true },
   { id: 'themeToggle', zone: 'headerRight', visible: true },

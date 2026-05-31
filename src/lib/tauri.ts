@@ -22,6 +22,18 @@ export async function openLocalPath(target: string, baseDir?: string): Promise<s
   return invoke('open_local_path', { target, baseDir });
 }
 
+export async function openAppDirectory(): Promise<string> {
+  return invoke('open_app_directory');
+}
+
+export async function openCacheDirectory(): Promise<string> {
+  return invoke('open_cache_directory');
+}
+
+export async function getPortableConfig(): Promise<string | null> {
+  return invoke('portable_config');
+}
+
 export async function checkAndCacheUrl(url: string): Promise<CacheResult> {
   return invoke('check_and_cache_url', { url });
 }

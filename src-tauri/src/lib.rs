@@ -30,6 +30,18 @@ struct StartupDocument {
 }
 
 #[tauri::command]
+fn portable_config() -> Result<Option<String>, String> {
+    let config_path = app_dir()?.join("config").join("rodots.config.json");
+    if !config_path.exists() {
+        return Ok(None);
+    }
+
+    fs::read_to_string(&config_path)
+        .map(Some)
+        .map_err(|err| format!("共有設定を読み込めません: {err}"))
+}
+
+#[tauri::command]
 fn startup_document() -> StartupDocument {
     let path = std::env::args()
         .skip(1)
@@ -84,6 +96,19 @@ fn open_local_path(app: tauri::AppHandle, target: String, base_dir: Option<Strin
         .map_err(|err| format!("OSで開けませんでした: {err}"))?;
 
     Ok(canonical.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn open_app_directory(app: tauri::AppHandle) -> Result<String, String> {
+    let dir = app_dir()?;
+    open_directory(app, dir)
+}
+
+#[tauri::command]
+fn open_cache_directory(app: tauri::AppHandle) -> Result<String, String> {
+    let dir = app_cache_dir()?;
+    fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
+    open_directory(app, dir)
 }
 
 #[tauri::command]
@@ -309,6 +334,29 @@ fn app_cache_dir() -> Result<PathBuf, String> {
         .ok_or_else(|| "アプリ用キャッシュディレクトリを解決できません".to_string())
 }
 
+fn app_dir() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|err| err.to_string())?;
+    exe.parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| "アプリのディレクトリを解決できません".to_string())
+}
+
+fn open_directory(app: tauri::AppHandle, dir: PathBuf) -> Result<String, String> {
+    if !dir.exists() {
+        fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
+    }
+
+    let canonical = dir
+        .canonicalize()
+        .map_err(|err| format!("ディレクトリを確認できません: {err}"))?;
+
+    app.opener()
+        .open_path(canonical.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|err| format!("OSで開けませんでした: {err}"))?;
+
+    Ok(canonical.to_string_lossy().to_string())
+}
+
 fn hex_digest(input: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
@@ -368,8 +416,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            portable_config,
             startup_document,
             open_local_path,
+            open_app_directory,
+            open_cache_directory,
             check_and_cache_url,
             export_cache_zip,
             import_cache_zip,

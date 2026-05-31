@@ -13,11 +13,13 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 - Reads document metadata and shows breadcrumbs for the project origin.
 - Generates rule-based file names for minutes, reports, and specs.
 - Opens the current document location in the OS file explorer.
+- Opens the running app folder and local cache folder from header gadgets.
 - Switches between View, Split, and Edit modes with `Ctrl+M`.
 - Opens `*.view.rdot` in View mode and locks `*.rock.rdot` to View mode.
 - Opens associated `.rdot` files directly when launched from the OS.
 - Starts with a clean welcome screen when no document is provided.
 - Lets header and footer gadgets be arranged from a small config.
+- Supports a portable zip layout with shared `config/` and `extensions/` folders beside `rodots.exe`.
 - Includes a simple dark/light theme toggle.
 - Keeps app caches outside synced project folders.
 
@@ -58,6 +60,15 @@ For the desktop app, install Rust and then run:
 ```bash
 npm run tauri -- dev
 ```
+
+To build a portable zip after the Tauri release build:
+
+```bash
+npm run tauri -- build
+npm run package:portable
+```
+
+The portable zip keeps shared settings and extensions beside `rodots.exe`. Runtime caches are still created in the local OS cache directory for each PC.
 
 ## Status
 
