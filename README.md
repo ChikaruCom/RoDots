@@ -12,6 +12,7 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 - Lets preview users update dates through a calendar-like date input.
 - Reads document metadata and shows breadcrumbs for the project origin.
 - Generates rule-based file names for minutes, reports, and specs.
+- Switches between View, Split, and Edit modes with `Ctrl+M`.
 - Keeps app caches outside synced project folders.
 
 ## Example

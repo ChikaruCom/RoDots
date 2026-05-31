@@ -11,6 +11,12 @@ export type CacheResult = {
   error: string | null;
 };
 
+export type StartupDocument = {
+  path: string | null;
+  content: string | null;
+  view_mode: boolean;
+};
+
 export async function openLocalPath(target: string, baseDir?: string): Promise<string> {
   return invoke('open_local_path', { target, baseDir });
 }
@@ -29,4 +35,8 @@ export async function importCacheZip(sourceFile: string): Promise<string> {
 
 export async function saveWithTemplate(currentFile: string | null, content: string, fileName: string): Promise<string> {
   return invoke('save_with_template', { currentFile, content, fileName });
+}
+
+export async function getStartupDocument(): Promise<StartupDocument> {
+  return invoke('startup_document');
 }

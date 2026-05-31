@@ -6,6 +6,8 @@
 - `date`, `input`, and `meta` commands
 - Date row repeat syntax
 - Preview-side date editing
+- View, split, and edit modes
+- `*.view.rdot` startup behavior
 - Metadata breadcrumbs
 - File template save command
 - Local path opening

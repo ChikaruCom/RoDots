@@ -7,6 +7,18 @@
 - View lock convention: `*.view.rdot`
 - Stack: Tauri v2, Svelte, TypeScript, Vite, Tailwind CSS, Rust
 
+## Modes
+
+RoDots has three simple modes:
+
+- `view`: shows only the rendered document. This is the safest mode for operators and people who should not edit source text accidentally.
+- `split`: shows the editor and rendered view side by side.
+- `edit`: shows only the source editor.
+
+`Ctrl+M` cycles through `view`, `split`, and `edit`.
+
+When RoDots is launched with a file whose name ends in `.view.rdot`, it starts in `view` mode. This supports documents prepared by an editor and safely executed by another user.
+
 ## Command Syntax
 
 RoDots commands use double braces:

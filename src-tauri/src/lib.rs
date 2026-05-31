@@ -21,6 +21,49 @@ struct CacheResult {
     error: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+struct StartupDocument {
+    path: Option<String>,
+    content: Option<String>,
+    view_mode: bool,
+}
+
+#[tauri::command]
+fn startup_document() -> StartupDocument {
+    let path = std::env::args()
+        .skip(1)
+        .map(PathBuf::from)
+        .find(|path| {
+            path.extension()
+                .and_then(|value| value.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("rdot"))
+                .unwrap_or(false)
+        });
+
+    let Some(path) = path else {
+        return StartupDocument {
+            path: None,
+            content: None,
+            view_mode: false,
+        };
+    };
+
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let view_mode = file_name.ends_with(".view.rdot");
+    let content = fs::read_to_string(&path).ok();
+
+    StartupDocument {
+        path: Some(path.to_string_lossy().to_string()),
+        content,
+        view_mode,
+    }
+}
+
+
 #[tauri::command]
 fn open_local_path(app: tauri::AppHandle, target: String, base_dir: Option<String>) -> Result<String, String> {
     let path = resolve_local_target(&target, base_dir.as_deref())?;
@@ -321,6 +364,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            startup_document,
             open_local_path,
             check_and_cache_url,
             export_cache_zip,

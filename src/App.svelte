@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { Clipboard, Download, Moon, RefreshCw, Upload } from 'lucide-svelte';
+  import { Clipboard, Download, Eye, Moon, PanelsTopLeft, Pencil, RefreshCw, Upload } from 'lucide-svelte';
+  import { onMount } from 'svelte';
   import AmbientTimer from './components/AmbientTimer.svelte';
   import Breadcrumbs from './components/Breadcrumbs.svelte';
   import FileTemplateMenu from './components/FileTemplateMenu.svelte';
   import type { FileTemplateId } from './lib/fileTemplates';
+  import { modeLabel, nextMode, type AppMode } from './lib/modes';
   import { parseRawDots, updateDateBaseInSource, type Block, type InlineToken, type InputValues } from './lib/parser';
-  import { checkAndCacheUrl, exportCacheZip, importCacheZip, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
+  import { checkAndCacheUrl, exportCacheZip, getStartupDocument, importCacheZip, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
   import { headerWidgets } from './lib/widgetConfig';
 
   const starter = `{{ meta # project=共通システム開発, parent=02_要件定義, origin=https://drive.google.com/ }}
@@ -30,11 +32,52 @@ TODOは @owner が未入力の間だけ残ります。`;
   let toast = '';
   let activeDateKey = '';
   let currentFilePath = '';
+  let mode: AppMode = 'split';
+  let startedFromViewFile = false;
 
   $: parsed = parseRawDots(source, inputValues);
   $: unresolvedCount = parsed.todos.length;
   $: leftWidgets = headerWidgets.filter((widget) => widget.visible && widget.side === 'left');
   $: rightWidgets = headerWidgets.filter((widget) => widget.visible && widget.side === 'right');
+  $: showEditor = mode !== 'view';
+  $: showPreview = mode !== 'edit';
+  $: workspaceClass = mode === 'split' ? 'grid min-h-0 grid-cols-1 md:grid-cols-2' : 'grid min-h-0 grid-cols-1';
+
+  onMount(() => {
+    void loadStartupDocument();
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
+        event.preventDefault();
+        toggleMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  });
+
+  async function loadStartupDocument(): Promise<void> {
+    try {
+      const startup = await getStartupDocument();
+      if (startup.path) currentFilePath = startup.path;
+      if (startup.content) source = startup.content;
+      if (startup.view_mode) {
+        startedFromViewFile = true;
+        mode = 'view';
+        toast = '*.view.rdot としてViewで開きました';
+      }
+    } catch {
+      // Browser dev mode has no Tauri backend; keep the starter document.
+    }
+  }
+
+  function toggleMode(): void {
+    mode = nextMode(mode);
+    activeDateKey = '';
+    toast = `${modeLabel(mode)} モード`;
+    window.setTimeout(() => (toast = ''), 1400);
+  }
 
   function setInput(alias: string, value: string): void {
     inputValues = { ...inputValues, [alias]: value };
@@ -213,14 +256,32 @@ TODOは @owner が未入力の間だけ残ります。`;
           </button>
         {/if}
       {/each}
+      <button
+        class="inline-flex h-9 items-center gap-2 rounded border border-cyan-700/60 bg-cyan-950/30 px-3 text-xs font-medium text-cyan-100 hover:bg-cyan-900/50"
+        title="Ctrl+Mでモード切替"
+        on:click={toggleMode}
+      >
+        {#if mode === 'view'}
+          <Eye size={15} />
+        {:else if mode === 'edit'}
+          <Pencil size={15} />
+        {:else}
+          <PanelsTopLeft size={15} />
+        {/if}
+        <span>{modeLabel(mode)}</span>
+        {#if startedFromViewFile}
+          <span class="rounded bg-stone-800 px-1.5 py-0.5 text-[10px] text-stone-300">view file</span>
+        {/if}
+      </button>
     </div>
   </header>
 
-  <section class="grid min-h-0 grid-cols-1 md:grid-cols-2">
-    <div class="grid min-h-0 grid-rows-[auto_1fr] border-r border-stone-800">
+  <section class={workspaceClass}>
+    {#if showEditor}
+    <div class={`grid min-h-0 grid-rows-[auto_1fr] ${mode === 'split' ? 'border-r border-stone-800' : ''}`}>
       <div class="flex h-11 items-center justify-between border-b border-stone-800 px-4 text-xs uppercase text-stone-400">
         <span>Editor</span>
-        <span>{source.length} chars</span>
+        <span>{currentFilePath ? currentFilePath.split(/[\\/]/).at(-1) : `${source.length} chars`}</span>
       </div>
       <textarea
         class="h-full w-full resize-none bg-[#111315] p-5 font-mono text-sm leading-6 text-stone-100 outline-none placeholder:text-stone-600"
@@ -228,10 +289,12 @@ TODOは @owner が未入力の間だけ残ります。`;
         spellcheck="false"
       ></textarea>
     </div>
+    {/if}
 
+    {#if showPreview}
     <div class="grid min-h-0 grid-rows-[auto_1fr]">
       <div class="flex h-11 items-center justify-between border-b border-stone-800 px-4 text-xs uppercase text-stone-400">
-        <span>Preview</span>
+        <span>{mode === 'view' ? 'View' : 'Preview'}</span>
         {#if toast}<span class="normal-case text-cyan-200">{toast}</span>{/if}
       </div>
 
@@ -313,5 +376,6 @@ TODOは @owner が未入力の間だけ残ります。`;
         </div>
       </article>
     </div>
+    {/if}
   </section>
 </main>
