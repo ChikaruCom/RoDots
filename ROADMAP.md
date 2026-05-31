@@ -9,6 +9,8 @@
 - View, split, and edit modes
 - `*.view.rdot` startup behavior
 - `*.rock.rdot` locked view behavior
+- Clean welcome screen for ordinary startup
+- Windows startup without a console window
 - Header/footer gadget zones
 - Simple dark/light theme toggle
 - Metadata breadcrumbs

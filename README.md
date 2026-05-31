@@ -14,6 +14,8 @@ It sits just before "Robots": not an autonomous agent, but a obedient practical 
 - Generates rule-based file names for minutes, reports, and specs.
 - Switches between View, Split, and Edit modes with `Ctrl+M`.
 - Opens `*.view.rdot` in View mode and locks `*.rock.rdot` to View mode.
+- Opens associated `.rdot` files directly when launched from the OS.
+- Starts with a clean welcome screen when no document is provided.
 - Lets header and footer gadgets be arranged from a small config.
 - Includes a simple dark/light theme toggle.
 - Keeps app caches outside synced project folders.

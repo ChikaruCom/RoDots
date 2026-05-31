@@ -11,20 +11,8 @@
   import { checkAndCacheUrl, exportCacheZip, getStartupDocument, importCacheZip, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
   import { gadgets, type GadgetZone } from './lib/widgetConfig';
 
-  const starter = `{{ meta # project=共通システム開発, parent=02_要件定義, origin=https://drive.google.com/ }}
-
-# RoDots サンプル
-
-打ち合わせ日: {{ date # today, 令和N年mm月dd日(六曜), +0D, copy @meeting_date }}
-連続確認:
-- 打ち合わせ日: {{ date # today, 令和N年mm月dd日(六曜), +3nD, copy @meeting_date }}
-担当者: {{ input # text, 担当者名 @owner }}
-
-- 次回確認: {{ date # @meeting_date, yyyy-mm-dd, +7D @next_review }}
-- 関連フォルダ: file:./notes
-- 参考URL: https://example.com
-
-TODOは @owner が未入力の間だけ残ります。`;
+  const githubUrl = 'https://github.com/ChikaruCom/RoDots';
+  const starter = '';
 
   let source = starter;
   let inputValues: InputValues = {};
@@ -33,10 +21,10 @@ TODOは @owner が未入力の間だけ残ります。`;
   let toast = '';
   let activeDateKey = '';
   let currentFilePath = '';
-  let mode: AppMode = 'split';
+  let mode: AppMode = 'view';
   let startedFromViewFile = false;
   let rockLocked = false;
-  let theme: 'dark' | 'light' = 'dark';
+  let theme: 'dark' | 'light' = 'light';
 
   $: parsed = parseRawDots(source, inputValues);
   $: unresolvedCount = parsed.todos.length;
@@ -48,6 +36,7 @@ TODOは @owner が未入力の間だけ残ります。`;
   $: showPreview = mode !== 'edit';
   $: workspaceClass = mode === 'split' ? 'grid min-h-0 grid-cols-1 md:grid-cols-2' : 'grid min-h-0 grid-cols-1';
   $: themeClass = theme === 'dark' ? 'theme-dark bg-[#101113] text-stone-100' : 'theme-light bg-stone-50 text-stone-950';
+  $: showWelcome = !currentFilePath && source.trim().length === 0;
 
   onMount(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -78,6 +67,8 @@ TODOは @owner が未入力の間だけ残ります。`;
         startedFromViewFile = true;
         mode = 'view';
         toast = '*.view.rdot としてViewで開きました';
+      } else if (startup.path) {
+        mode = 'split';
       }
     } catch {
       // Browser dev mode has no Tauri backend; keep the starter document.
@@ -99,6 +90,17 @@ TODOは @owner が未入力の間だけ残ります。`;
   function toggleTheme(): void {
     theme = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.classList.toggle('dark', theme === 'dark');
+  }
+
+  function createBlankDocument(): void {
+    source = '# New RoDots\n\n';
+    mode = 'split';
+    toast = '新規ドキュメント';
+    window.setTimeout(() => (toast = ''), 1400);
+  }
+
+  function openGithub(): void {
+    window.open(githubUrl, '_blank', 'noopener,noreferrer');
   }
 
   function zoneGadgets(zone: GadgetZone) {
@@ -342,6 +344,34 @@ TODOは @owner が未入力の間だけ残ります。`;
       </div>
 
       <article class="overflow-auto bg-[#151719] p-6">
+        {#if showWelcome}
+          <div class="mx-auto flex min-h-full max-w-3xl flex-col justify-center py-16">
+            <div class="space-y-6">
+              <div class="flex items-center gap-4">
+                <div class="grid size-14 place-items-center rounded bg-cyan-500 text-2xl font-black text-[#101113]">R</div>
+                <div>
+                  <h2 class="text-4xl font-semibold text-stone-50">RoDots</h2>
+                  <p class="mt-1 text-sm text-stone-400">Robots の手前にある、現場のための従順なドキュメント。</p>
+                </div>
+              </div>
+
+              <div class="grid gap-3 text-sm leading-7 text-stone-300">
+                <p>.rdot は、編集者が作り、実行者が迷わず使うための軽い業務文書です。</p>
+                <p>View、Split、Edit、Rock のモードで、作る人と使う人の距離を少し縮めます。</p>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <button class="rounded border border-cyan-700/60 bg-cyan-950/30 px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/50" on:click={createBlankDocument}>
+                  新規作成
+                </button>
+                <button class="rounded border border-stone-700 px-3 py-2 text-sm text-stone-300 hover:bg-stone-800" on:click={openGithub}>
+                  GitHub
+                </button>
+                <span class="text-xs text-stone-500">{githubUrl}</span>
+              </div>
+            </div>
+          </div>
+        {:else}
         <div class="mx-auto max-w-3xl space-y-4">
           {#each parsed.blocks as block, blockIndex}
             {#if block.kind === 'blank'}
@@ -417,6 +447,7 @@ TODOは @owner が未入力の間だけ残ります。`;
             </section>
           {/if}
         </div>
+        {/if}
       </article>
     </div>
     {/if}

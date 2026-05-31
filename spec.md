@@ -8,6 +8,10 @@
 - Rock lock convention: `*.rock.rdot`
 - Stack: Tauri v2, Svelte, TypeScript, Vite, Tailwind CSS, Rust
 
+When RoDots is launched without a document, it shows a clean welcome screen with the product name, concept, and GitHub URL. It does not pre-fill a sample document.
+
+On Windows release builds, RoDots uses the GUI subsystem so a console window is not shown during startup.
+
 ## Modes
 
 RoDots has three simple modes:
