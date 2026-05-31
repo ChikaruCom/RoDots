@@ -1,0 +1,15 @@
+{{ meta # project=共通システム開発, parent=02_要件定義, origin=https://drive.google.com/ }}
+
+# 議事録
+
+- 打ち合わせ日: {{ date # today, 令和N年mm月dd日(六曜), +0D, copy @meeting_date }}
+- 担当者: {{ input # text, 担当者名 @owner }}
+- 次回確認: {{ date # @meeting_date, yyyy-mm-dd, +7D @next_review }}
+
+## 連続確認
+
+- 確認日: {{ date # today, yyyy-mm-dd, +3nD @check_date }}
+
+## TODO
+
+- @owner が議事録を更新する

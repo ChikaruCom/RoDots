@@ -1,0 +1,11 @@
+{{ meta # project=共通システム開発, parent=03_報告, author=水木, version=1.0.0 }}
+
+# 報告書
+
+- 作成日: {{ date # today, 令和N年mm月dd日(六曜), +0D, copy @report_date }}
+- 作成者: {{ input # text, 作成者 @owner }}
+- 対象期間: {{ date # today, yyyy-mm-dd, -4n..+3nD @period_date }}
+
+## 概要
+
+{{ input # text, 報告概要 @summary }}

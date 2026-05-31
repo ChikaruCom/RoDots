@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background: #101113;
+  color: #e8e2d8;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+.rawdots-link-ok {
+  text-decoration: underline wavy #26a269;
+  text-underline-offset: 4px;
+}
+
+.rawdots-link-pending {
+  text-decoration: underline wavy #7d8590;
+  text-underline-offset: 4px;
+}
+
+.rawdots-link-error {
+  text-decoration: underline wavy #e5534b;
+  text-underline-offset: 4px;
+}

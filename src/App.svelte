@@ -1,0 +1,317 @@
+<script lang="ts">
+  import { Clipboard, Download, Moon, RefreshCw, Upload } from 'lucide-svelte';
+  import AmbientTimer from './components/AmbientTimer.svelte';
+  import Breadcrumbs from './components/Breadcrumbs.svelte';
+  import FileTemplateMenu from './components/FileTemplateMenu.svelte';
+  import type { FileTemplateId } from './lib/fileTemplates';
+  import { parseRawDots, updateDateBaseInSource, type Block, type InlineToken, type InputValues } from './lib/parser';
+  import { checkAndCacheUrl, exportCacheZip, importCacheZip, openLocalPath, saveWithTemplate, type LinkState } from './lib/tauri';
+  import { headerWidgets } from './lib/widgetConfig';
+
+  const starter = `{{ meta # project=共通システム開発, parent=02_要件定義, origin=https://drive.google.com/ }}
+
+# RoDots サンプル
+
+打ち合わせ日: {{ date # today, 令和N年mm月dd日(六曜), +0D, copy @meeting_date }}
+連続確認:
+- 打ち合わせ日: {{ date # today, 令和N年mm月dd日(六曜), +3nD, copy @meeting_date }}
+担当者: {{ input # text, 担当者名 @owner }}
+
+- 次回確認: {{ date # @meeting_date, yyyy-mm-dd, +7D @next_review }}
+- 関連フォルダ: file:./notes
+- 参考URL: https://example.com
+
+TODOは @owner が未入力の間だけ残ります。`;
+
+  let source = starter;
+  let inputValues: InputValues = {};
+  let linkStates: Record<string, LinkState> = {};
+  let cacheMeta: Record<string, string> = {};
+  let toast = '';
+  let activeDateKey = '';
+  let currentFilePath = '';
+
+  $: parsed = parseRawDots(source, inputValues);
+  $: unresolvedCount = parsed.todos.length;
+  $: leftWidgets = headerWidgets.filter((widget) => widget.visible && widget.side === 'left');
+  $: rightWidgets = headerWidgets.filter((widget) => widget.visible && widget.side === 'right');
+
+  function setInput(alias: string, value: string): void {
+    inputValues = { ...inputValues, [alias]: value };
+  }
+
+  async function copyText(text: string): Promise<void> {
+    await navigator.clipboard.writeText(text);
+    toast = 'コピーしました';
+    window.setTimeout(() => (toast = ''), 1600);
+  }
+
+  function dateTokenKey(token: Extract<InlineToken, { kind: 'date' }>, blockIndex: number, tokenIndex: number): string {
+    return `${blockIndex}:${token.alias ?? 'date'}:${token.text}:${tokenIndex}`;
+  }
+
+  function openDateEditor(token: Extract<InlineToken, { kind: 'date' }>, blockIndex: number, tokenIndex: number): void {
+    activeDateKey = dateTokenKey(token, blockIndex, tokenIndex);
+  }
+
+  function changeDate(token: Extract<InlineToken, { kind: 'date' }>, value: string): void {
+    if (!value) return;
+    source = updateDateBaseInSource(source, token.alias, value, token.offsetAmount, token.offsetUnit);
+    activeDateKey = '';
+  }
+
+  async function openLink(token: Extract<InlineToken, { kind: 'link' }>): Promise<void> {
+    if (token.linkType === 'file') {
+      try {
+        await openLocalPath(token.href);
+        linkStates = { ...linkStates, [token.href]: 'ok' };
+      } catch {
+        linkStates = { ...linkStates, [token.href]: 'error' };
+      }
+      return;
+    }
+
+    window.open(token.href, '_blank', 'noopener,noreferrer');
+    void refreshUrl(token.href);
+  }
+
+  async function refreshUrl(url: string): Promise<void> {
+    linkStates = { ...linkStates, [url]: 'pending' };
+    try {
+      const result = await checkAndCacheUrl(url);
+      linkStates = { ...linkStates, [url]: result.ok ? 'ok' : 'error' };
+      if (result.cached_at) {
+        cacheMeta = { ...cacheMeta, [url]: `${result.cached_at} 取得キャッシュ` };
+      }
+    } catch {
+      linkStates = { ...linkStates, [url]: 'error' };
+    }
+  }
+
+  async function backupCache(): Promise<void> {
+    const destination = window.prompt('保存先ZIPファイルのパス', 'rawdots-cache.zip');
+    if (!destination) return;
+    const saved = await exportCacheZip(destination);
+    toast = `バックアップ: ${saved}`;
+  }
+
+  async function restoreCache(): Promise<void> {
+    const sourceFile = window.prompt('復元するZIPファイルのパス', 'rawdots-cache.zip');
+    if (!sourceFile) return;
+    const restored = await importCacheZip(sourceFile);
+    toast = `復元: ${restored}`;
+  }
+
+  async function openBreadcrumbTarget(target: string): Promise<void> {
+    if (target.startsWith('http')) {
+      window.open(target, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      await openLocalPath(target);
+    } catch {
+      toast = 'パンくずの場所を開けませんでした';
+    }
+  }
+
+  async function saveTemplate(template: FileTemplateId): Promise<void> {
+    const fileName = buildTemplateFileName(template);
+    const path = currentFilePath || window.prompt('保存先に使う既存ファイルパス、または保存先フォルダ', '');
+    if (!path) return;
+
+    currentFilePath = await saveWithTemplate(path, source, fileName);
+    toast = `保存: ${fileName}`;
+  }
+
+  function buildTemplateFileName(template: FileTemplateId): string {
+    const project = parsed.meta.project || parsed.aliases.project || 'プロジェクト';
+    const author = parsed.aliases.owner || parsed.meta.author || '作成者';
+    const version = parsed.meta.version || parsed.aliases.version || '1.0.0';
+    const date = parsed.aliases.meeting_date || new Date().toISOString().slice(0, 10);
+
+    if (template === 'report') return `報告書_${author}_${toWarekiFileDate(date)}.rdot`;
+    if (template === 'spec') return `【仕様書】${project}_(v${version}).rdot`;
+    return `${toCompactFileDate(date)}_${project}_議事録.rdot`;
+  }
+
+  function toCompactFileDate(text: string): string {
+    const iso = toIsoInputValue(text);
+    return iso ? iso.replaceAll('-', '') : '日付未設定';
+  }
+
+  function toWarekiFileDate(text: string): string {
+    const iso = toIsoInputValue(text);
+    if (!iso) return text || '日付未設定';
+    const [year, month, day] = iso.split('-').map(Number);
+    return `令和${year - 2018}年${String(month).padStart(2, '0')}月${String(day).padStart(2, '0')}日`;
+  }
+
+  function toIsoInputValue(text: string): string {
+    const reiwa = /令和(\d+)年(\d{1,2})月(\d{1,2})日/.exec(text);
+    if (reiwa) return `${Number(reiwa[1]) + 2018}-${reiwa[2].padStart(2, '0')}-${reiwa[3].padStart(2, '0')}`;
+
+    const iso = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(text);
+    if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+
+    return '';
+  }
+
+  function blockClass(block: Block): string {
+    if (block.kind === 'heading' && block.level === 1) return 'text-3xl font-semibold text-stone-50';
+    if (block.kind === 'heading' && block.level === 2) return 'text-2xl font-semibold text-stone-100';
+    if (block.kind === 'heading') return 'text-xl font-semibold text-stone-100';
+    if (block.kind === 'list') return 'ml-4 list-item list-disc text-stone-200';
+    return 'leading-7 text-stone-200';
+  }
+
+  function linkClass(href: string): string {
+    const state = linkStates[href] ?? 'pending';
+    return `cursor-pointer break-all text-cyan-300 rawdots-link-${state}`;
+  }
+</script>
+
+<svelte:head>
+  <title>RoDots</title>
+</svelte:head>
+
+<main class="grid h-full grid-rows-[auto_1fr] bg-[#101113] text-stone-100">
+  <header class="flex min-h-14 items-center justify-between border-b border-stone-800 bg-[#17191b] px-4">
+    <div class="flex items-center gap-3">
+      <div class="grid size-8 place-items-center rounded bg-cyan-500 text-sm font-black text-[#101113]">R</div>
+      <div>
+        <h1 class="text-sm font-semibold tracking-normal">RoDots</h1>
+        <p class="text-xs text-stone-400">Markdown with human-sized variables</p>
+      </div>
+      {#each leftWidgets as widget}
+        {#if widget.id === 'breadcrumbs'}
+          <Breadcrumbs meta={parsed.meta} openTarget={openBreadcrumbTarget} />
+        {/if}
+      {/each}
+    </div>
+
+    <div class="flex items-center gap-2">
+      {#each rightWidgets as widget}
+        {#if widget.id === 'fileTemplates'}
+          <FileTemplateMenu onSave={saveTemplate} />
+        {:else if widget.id === 'ambientTimer'}
+          <AmbientTimer />
+        {:else if widget.id === 'cacheActions'}
+          {#if unresolvedCount > 0}
+            <span class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
+              TODO残あり: {unresolvedCount}
+            </span>
+          {/if}
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="キャッシュをバックアップ" on:click={backupCache}>
+            <Download size={16} />
+          </button>
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300 hover:bg-stone-800" title="キャッシュを復元" on:click={restoreCache}>
+            <Upload size={16} />
+          </button>
+          <button class="grid size-9 place-items-center rounded border border-stone-700 text-stone-300" title="ダークモード">
+            <Moon size={16} />
+          </button>
+        {/if}
+      {/each}
+    </div>
+  </header>
+
+  <section class="grid min-h-0 grid-cols-1 md:grid-cols-2">
+    <div class="grid min-h-0 grid-rows-[auto_1fr] border-r border-stone-800">
+      <div class="flex h-11 items-center justify-between border-b border-stone-800 px-4 text-xs uppercase text-stone-400">
+        <span>Editor</span>
+        <span>{source.length} chars</span>
+      </div>
+      <textarea
+        class="h-full w-full resize-none bg-[#111315] p-5 font-mono text-sm leading-6 text-stone-100 outline-none placeholder:text-stone-600"
+        bind:value={source}
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <div class="grid min-h-0 grid-rows-[auto_1fr]">
+      <div class="flex h-11 items-center justify-between border-b border-stone-800 px-4 text-xs uppercase text-stone-400">
+        <span>Preview</span>
+        {#if toast}<span class="normal-case text-cyan-200">{toast}</span>{/if}
+      </div>
+
+      <article class="overflow-auto bg-[#151719] p-6">
+        <div class="mx-auto max-w-3xl space-y-4">
+          {#each parsed.blocks as block, blockIndex}
+            {#if block.kind === 'blank'}
+              <div class="h-2"></div>
+            {:else if block.kind === 'code'}
+              <pre class="overflow-auto rounded border border-stone-800 bg-[#0c0d0e] p-4 font-mono text-sm text-stone-300">{block.text}</pre>
+            {:else}
+              <div class={blockClass(block)}>
+                {#each block.tokens as token, tokenIndex}
+                  {#if token.kind === 'text'}
+                    <span>{token.text}</span>
+                  {:else if token.kind === 'copy'}
+                    <span class="inline-flex items-center gap-1 rounded border border-cyan-700/60 bg-cyan-950/40 px-1.5 py-0.5 text-cyan-100">
+                      {token.text}
+                      <button class="grid size-6 place-items-center rounded text-cyan-200 hover:bg-cyan-800/60" title="値をコピー" on:click={() => copyText(token.text)}>
+                        <Clipboard size={13} />
+                      </button>
+                    </span>
+                  {:else if token.kind === 'date'}
+                    <span class="relative inline-flex items-center gap-1 rounded border border-cyan-700/60 bg-cyan-950/40 px-1.5 py-0.5 text-cyan-100">
+                      <button class="text-cyan-100 hover:text-white" title="日付を変更" on:click={() => openDateEditor(token, blockIndex, tokenIndex)}>
+                        {token.text}
+                      </button>
+                      {#if token.copy}
+                        <button class="grid size-6 place-items-center rounded text-cyan-200 hover:bg-cyan-800/60" title="値をコピー" on:click={() => copyText(token.text)}>
+                          <Clipboard size={13} />
+                        </button>
+                      {/if}
+                      {#if activeDateKey === dateTokenKey(token, blockIndex, tokenIndex)}
+                        <input
+                          class="absolute left-0 top-8 z-10 rounded border border-cyan-500 bg-[#202225] px-2 py-1 text-sm text-stone-100 shadow-xl outline-none"
+                          type="date"
+                          value={toIsoInputValue(token.text)}
+                          on:change={(event) => changeDate(token, event.currentTarget.value)}
+                          on:blur={() => (activeDateKey = '')}
+                        />
+                      {/if}
+                    </span>
+                  {:else if token.kind === 'input'}
+                    <input
+                      class="mx-1 inline-block w-44 rounded border border-amber-500/40 bg-[#202225] px-2 py-1 text-sm text-stone-100 outline-none focus:border-amber-300"
+                      type={token.inputType}
+                      placeholder={token.placeholder}
+                      value={token.value}
+                      on:input={(event) => setInput(token.alias, event.currentTarget.value)}
+                    />
+                  {:else if token.kind === 'link'}
+                    <button class={linkClass(token.href)} title={cacheMeta[token.href] ?? token.href} on:click={() => openLink(token)}>
+                      {token.label}
+                    </button>
+                    {#if token.linkType === 'web'}
+                      <button class="ml-1 inline-grid size-6 place-items-center rounded text-stone-400 hover:bg-stone-800 hover:text-stone-100" title="キャッシュ再取得" on:click={() => refreshUrl(token.href)}>
+                        <RefreshCw size={13} />
+                      </button>
+                    {/if}
+                  {/if}
+                {/each}
+              </div>
+            {/if}
+          {/each}
+
+          {#if Object.keys(parsed.aliases).length > 0}
+            <section class="mt-8 border-t border-stone-800 pt-4">
+              <h2 class="mb-3 text-xs uppercase text-stone-500">Aliases</h2>
+              <div class="grid gap-2 text-sm">
+                {#each Object.entries(parsed.aliases) as [alias, value]}
+                  <div class="flex min-h-8 items-center justify-between rounded border border-stone-800 bg-[#111315] px-3">
+                    <code class="text-cyan-300">@{alias}</code>
+                    <span class="text-stone-300">{value || '未入力'}</span>
+                  </div>
+                {/each}
+              </div>
+            </section>
+          {/if}
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
